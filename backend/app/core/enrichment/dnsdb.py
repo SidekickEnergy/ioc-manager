@@ -1,11 +1,11 @@
 import requests
 import json
+import os
 from core.config_loader import load_config
 
 _config = load_config()
-""" API_KEY = _config["dnsdb"]["api_key"] """
-BASE_URL = _config["dnsdb"]["base_url"]
-DEFAULT_LIMIT = _config["dnsdb"].get("default_limit", 5)
+BASE_URL = os.environ.get("DNSDB_BASE_URL") or _config["dnsdb"]["base_url"]
+DEFAULT_LIMIT = int(os.environ.get("DNSDB_DEFAULT_LIMIT") or _config["dnsdb"].get("default_limit", 5))
 
 
 def normalize_type_for_dnsdb(ioc_type: str) -> str:

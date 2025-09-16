@@ -14,16 +14,29 @@ def load_config():
 
 
 def get_defender_token():
-    config = load_config()
-    tenant_id = config["defender"]["tenant_id"]
-    client_id = config["defender"]["client_id"]
-    client_secret = config["defender"]["client_secret"]
+    # Try environment variables first
+    tenant_id = os.environ.get("DEFENDER_TENANT_ID")
+    client_id = os.environ.get("DEFENDER_CLIENT_ID")
+    client_secret = os.environ.get("DEFENDER_CLIENT_SECRET")
+    scope = os.environ.get("DEFENDER_SCOPE", "https://api.security.microsoft.com/.default")
+
+    # If any value is missing, fallback to config.yaml
+    if not all([tenant_id, client_id, client_secret]):
+        try:
+            config = load_config()
+            tenant_id = tenant_id or config["defender"]["tenant_id"]
+            client_id = client_id or config["defender"]["client_id"]
+            client_secret = client_secret or config["defender"]["client_secret"]
+            scope = scope or config["defender"].get("scope", "https://api.security.microsoft.com/.default")
+        except Exception as e:
+            print(f"[!] Failed to load Defender config: {e}")
+            return None
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
     payload = {
         "client_id": client_id,
-        "scope": "https://api.security.microsoft.com/.default", # "scope": "https://graph.microsoft.com/.default",   ✅ Microsoft Graph!
+        "scope": scope,
         "client_secret": client_secret,
         "grant_type": "client_credentials"
     }

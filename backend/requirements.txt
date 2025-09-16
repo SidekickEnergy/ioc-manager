@@ -1,9 +1,0 @@
-flask
-flask-cors
-requests
-pyyaml
-requests-oauthlib
-oauthlib
-pytz
-OTXv2
-pymisp

@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# Activate Azure's virtual environment if it exists
-if [ -e "$HOME/antenv/bin/activate" ]; then
-  echo "[INFO] Activating virtual environment..."
-  source "$HOME/antenv/bin/activate"
+# Look for Azure's default virtualenv folder
+VENV_PATH=$(find /tmp -type d -name "antenv" | head -n 1)
+
+if [ -n "$VENV_PATH" ]; then
+  echo "[INFO] Activating Azure virtual environment at $VENV_PATH"
+  source "$VENV_PATH/bin/activate"
 fi
 
-# Install (if needed) and start Gunicorn
+# Install and run app
 pip install -r requirements.txt
 
 export PYTHONPATH=./backend

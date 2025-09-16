@@ -1,3 +1,4 @@
 #!/bin/bash
-export FLASK_APP=backend/app/api.py
-flask run --host=0.0.0.0 --port=8000
+pip install -r requirements.txt
+exec gunicorn backend.app.api:app --bind=0.0.0.0:8000 --timeout 300
+

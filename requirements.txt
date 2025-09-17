@@ -1,9 +1,9 @@
-flask
-flask-cors
+Flask==3.1.0
+Flask-Cors>=6.0.0
 requests
 pyyaml
 requests-oauthlib
 oauthlib
-pytz
+pytzs
 OTXv2
 pymisp

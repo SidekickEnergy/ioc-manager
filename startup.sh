@@ -2,6 +2,7 @@
 
 echo "[DEBUG] startup.sh triggered"
 
+# Find and activate the Azure virtual environment
 VENV_PATH=$(find /tmp -type d -name "antenv" | head -n 1)
 
 if [ -n "$VENV_PATH" ]; then
@@ -15,6 +16,7 @@ fi
 echo "[DEBUG] Installed packages:"
 pip list
 
+# Start your app using global gunicorn
 echo "[DEBUG] Starting gunicorn"
 export PYTHONPATH=./backend
-exec "$VENV_PATH/bin/gunicorn" app.api:app --chdir backend --bind=0.0.0.0:8000 --timeout 300
+exec gunicorn app.api:app --chdir backend --bind=0.0.0.0:8000 --timeout 300

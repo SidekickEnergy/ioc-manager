@@ -1,24 +1,19 @@
-#!/bin/bash
-# 
+#!/bin/sh
 
 echo "[DEBUG] startup.sh triggered"
 
-# Set working directory to where api.py lives
-cd backend
+VENV_PATH=$(find /tmp -type d -name "antenv" | head -n 1)
 
-# Activate Azure-created virtual environment if available
-if [ -d "/antenv" ]; then
-  echo "[INFO] Activating Azure venv"
-  source /antenv/bin/activate
+if [ -n "$VENV_PATH" ]; then
+  echo "[INFO] Activating virtual environment at $VENV_PATH"
+  . "$VENV_PATH/bin/activate"
 else
-  echo "[WARN] Azure virtual environment not found"
+  echo "[WARN] Virtual environment not found"
 fi
 
-# Debug: list installed packages
 echo "[DEBUG] Installed packages:"
 pip list
 
-# Start the app
 echo "[DEBUG] Starting gunicorn"
-export PYTHONPATH=.
-exec gunicorn app.api:app --bind=0.0.0.0:8000 --timeout 300
+export PYTHONPATH=./backend
+exec gunicorn app.api:app --chdir backend --bind=0.0.0.0:8000 --timeout 300

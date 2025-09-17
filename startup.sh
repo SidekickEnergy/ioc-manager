@@ -1,21 +1,23 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "[DEBUG] startup.sh triggered"
 
-# Find and activate the Azure virtual environment
-VENV_PATH=$(find /tmp -type d -name "antenv" | head -n 1)
+# Set working directory to where api.py lives
+cd backend
 
-if [ -n "$VENV_PATH" ]; then
-  echo "[INFO] Activating Azure virtual environment at $VENV_PATH"
-  . "$VENV_PATH/bin/activate"
+# Activate Azure-created virtual environment if available
+if [ -d "/antenv" ]; then
+  echo "[INFO] Activating Azure venv"
+  source /antenv/bin/activate
 else
-  echo "[WARN] Virtual environment not found!"
+  echo "[WARN] Azure virtual environment not found"
 fi
 
+# Debug: list installed packages
 echo "[DEBUG] Installed packages:"
 pip list
-pip install flask-cors --upgrade
 
+# Start the app
 echo "[DEBUG] Starting gunicorn"
-export PYTHONPATH=./backend
-exec gunicorn app.api:app --chdir backend --bind=0.0.0.0:8000 --timeout 300
+export PYTHONPATH=.
+exec gunicorn app.api:app --bind=0.0.0.0:8000 --timeout 300

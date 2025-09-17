@@ -1,4 +1,5 @@
 #!/bin/bash
+# 
 
 echo "[DEBUG] startup.sh triggered"
 

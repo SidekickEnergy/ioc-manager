@@ -12,6 +12,10 @@ else
   echo "[WARN] Virtual environment not found!"
 fi
 
+# Install your dependencies
+echo "[DEBUG] Installing Python packages..."
+pip install -r requirements.txt
+
 # Optional: Debug installed packages
 echo "[DEBUG] Installed packages:"
 pip list

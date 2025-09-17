@@ -14,6 +14,7 @@ fi
 
 echo "[DEBUG] Installed packages:"
 pip list
+pip install flask-cors --upgrade
 
 echo "[DEBUG] Starting gunicorn"
 export PYTHONPATH=./backend

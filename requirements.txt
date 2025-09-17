@@ -4,6 +4,6 @@ requests
 pyyaml
 requests-oauthlib
 oauthlib
-pytzs
+pytz
 OTXv2
 pymisp

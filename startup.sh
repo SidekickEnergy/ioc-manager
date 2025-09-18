@@ -15,5 +15,5 @@ echo "[DEBUG] Installed packages:"
 pip list
 
 echo "[DEBUG] Starting gunicorn"
-export PYTHONPATH=./backend
+export PYTHONPATH=$(pwd)/backend
 exec gunicorn app.api:app --chdir backend --bind=0.0.0.0:8000 --timeout 300

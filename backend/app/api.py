@@ -1,7 +1,6 @@
 # core/api.py
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from core.enrichment.pipeline import run_enrichment
 from integrations.umbrella import UmbrellaAPI, TOKEN_URL, CLIENT_ID, CLIENT_SECRET
 from integrations.misp import block_ioc_in_misp
@@ -11,7 +10,9 @@ import requests
 import os
 
 app = Flask(__name__)
-CORS(app)
+if os.environ.get("FLASK_ENV") != "production":
+    from flask_cors import CORS
+    CORS(app)
 
 
 @app.route("/umbrella/destination-lists", methods=["GET"])

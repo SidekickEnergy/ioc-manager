@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "IoC Enricher",
+  "version": "1.1",
+  "description": "Lookup and enrich IoCs from a backend API.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:5000/*"
+  ],
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  }
+}

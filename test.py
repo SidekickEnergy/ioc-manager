@@ -2,7 +2,7 @@ import requests
 import json
 
 # ====== CONFIG ======
-APP_URL = "https://iocmanager-ddc4ckfyeuhwa4d4.westeurope-01.azurewebsites.net"  # Replace this
+APP_URL = "https://iocmanager-ddc4ckfyeuhwa4d4.westeurope-01.azurewebsites.net"
 IIOC = "8.8.8.8"  # Replace with a test IoC
 
 # Optional API keys for enrichment

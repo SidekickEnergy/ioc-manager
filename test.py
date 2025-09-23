@@ -2,7 +2,7 @@ import requests
 import json
 
 # ====== CONFIG ======
-APP_URL = "https://iocmanager-ddc4ckfyeuhwa4d4.westeurope-01.azurewebsites.net"
+APP_URL = "https://iocmanager.azurewebsites.net"
 IIOC = "8.8.8.8"  # Replace with a test IoC
 
 # Optional API keys for enrichment
@@ -15,7 +15,7 @@ API_KEYS = {
 
 def test_health():
     try:
-        res = requests.get(f"{APP_URL}/")
+        res = requests.get(f"{APP_URL}/health")
         print("[+] Health check:", res.status_code, res.text.strip())
     except Exception as e:
         print("[!] Health check failed:", e)

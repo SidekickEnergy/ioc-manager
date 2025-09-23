@@ -58,9 +58,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_ED929AA60913411C88373DE27BF2978E }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_162906A2D1594AB48DE511AC6C74684F }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C9CBB9CAC82B42F89A2D49042EEE3103 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_514193D1F29142C593869621FB4B0F63 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C6B8FEC1425D40388645570572169FD4 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_32F3EECDB9B847C182718B721091873A }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -68,7 +68,4 @@ jobs:
         with:
           app-name: 'iocmanager'
           slot-name: 'Production'
-          clean: true
-
-
           

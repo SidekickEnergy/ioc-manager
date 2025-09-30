@@ -1,36 +1,11 @@
 # core/enrichment/otx.py
 
-import os
 import json
 import argparse
-import yaml
 from OTXv2 import OTXv2, IndicatorTypes
-
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../config.yaml")
-
-def load_otx_api_key():
-    """Load OTX API key from config.yaml or environment fallback."""
-    if os.path.isfile(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, "r") as f:
-                config = yaml.safe_load(f)
-            api_key = config.get("otx", {}).get("api_key")
-            if api_key:
-                return api_key
-        except Exception as e:
-            print(json.dumps({"error": f"Failed to read config.yaml: {str(e)}"}))
-    
-    return os.getenv("OTX_API_KEY")
-
 
 def check_ioc(ioc_type, ioc_value, api_key=None):
     try:
-        """ if not api_key:
-            api_key = load_otx_api_key()
-
-        if not api_key:
-            return {"error": "OTX API key not found in config.yaml or environment"} """
-
         otx_instance = OTXv2(api_key)
         result = otx_instance.get_indicator_details_by_section(ioc_type, ioc_value, section="general")
         # NOTE: if the OTX SDK does not support timeout, you'll need to monkey patch or catch long delays at thread level

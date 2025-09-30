@@ -5,8 +5,6 @@ from core.enrichment.pipeline import run_enrichment
 from integrations.umbrella import UmbrellaAPI, TOKEN_URL
 from integrations.misp import block_ioc_in_misp
 from integrations.edl import update_edl
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
-import requests
 import os
 
 app = Flask(__name__)
@@ -73,19 +71,18 @@ def block_ioc_in_umbrella():
 @app.route("/edl/block", methods=["POST"])
 def edl_block():
     data = request.get_json(force=True, silent=True) or {}
-
     ip = data.get("ip")
     action = data.get("action")
     apikey = data.get("apikey")
+    edl_base_url = data.get("edl_base_url") or os.getenv("EDL_BASE_URL")
 
     if not ip or action not in ["add", "remove"] or not apikey:
         return jsonify({"error": "Missing or invalid IP, action, or API key"}), 400
+    if not edl_base_url:
+        return jsonify({"error": "Missing EDL base URL (edl_base_url)"}), 400
 
-    result = update_edl(ip=ip, apikey=apikey, action=action)
-    if result.get("success"):
-        return jsonify(result)
-    else:
-        return jsonify(result), 500
+    result = update_edl(ip=ip, apikey=apikey, action=action, base_url=edl_base_url)
+    return (jsonify(result), 200) if result.get("success") else (jsonify(result), 500)
 
 
 @app.route("/misp/block", methods=["POST"])
@@ -101,7 +98,7 @@ def misp_block():
 
     # New: Extract API key from frontend
     api_key = data.get("api_key")
-    base_url = data.get("base_url", "https://misp.cert.dk")
+    base_url = data.get("base_url")
     verify_ssl = data.get("verify_ssl", True)
 
     if not ioc:

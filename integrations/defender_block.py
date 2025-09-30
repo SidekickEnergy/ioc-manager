@@ -46,13 +46,13 @@ def submit_threat_indicator(indicator_type, indicator_value, action="Alert", sev
         "threatType": "phishing"
     }
 
-    print("[DEBUG] Payload to be sent:")
-    print(json.dumps(payload, indent=2))
+    #print("[DEBUG] Payload to be sent:")
+    #print(json.dumps(payload, indent=2))
 
     try:
         response = requests.post(GRAPH_TI_ENDPOINT, headers=headers, json=payload)
-        print(f"[DEBUG] HTTP {response.status_code}")
-        print(f"[DEBUG] Response body: {response.text}")
+    #    print(f"[DEBUG] HTTP {response.status_code}")
+    #    print(f"[DEBUG] Response body: {response.text}")
         response.raise_for_status()
         return {"success": True, "submitted": response.json()}
     except requests.exceptions.RequestException as e:

@@ -1,19 +1,27 @@
 import requests
 import urllib3
 import os
-import yaml
 from datetime import datetime, timezone
 import pytz
 from pymisp import PyMISP, MISPEvent, MISPAttribute
 import logging
-import json
 
-# === Configuration Loader ===
-def load_misp_config():
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-    return config.get("misp", {})
+def _mask(s: str) -> str:
+    if not s:
+        return ""
+    s = str(s)
+    return s[:4] + "..." + s[-4:] if len(s) > 8 else "***"
+
+def _resolve_misp_config(base_url: str | None, verify_ssl: bool | None) -> tuple[str, bool]:
+    url = (base_url or os.getenv("MISP_BASE_URL") or "").strip()
+    if not url:
+        raise ValueError("MISP base URL is required (pass base_url or set MISP_BASE_URL).")
+    if verify_ssl is None:
+        v = os.getenv("MISP_VERIFY_SSL", "true").lower() in ("1", "true", "yes", "on")
+    else:
+        v = bool(verify_ssl)
+    return url.rstrip("/"), v
+
 
 
 # === Helper: Convert Epoch to Copenhagen Time ===
@@ -28,8 +36,9 @@ def format_timestamp(ts_str):
         return "Invalid timestamp"
 
 # === MISP Connection Test ===
-def test_misp_connection(api_key, base_url="https://misp.cert.dk", verify_ssl=True, timeout=5):
-    url = f"{base_url.rstrip('/')}/servers/getVersion"
+def test_misp_connection(api_key, base_url=None, verify_ssl=None, timeout=5):
+    base_url, verify_ssl = _resolve_misp_config(base_url, verify_ssl)
+    url = f"{base_url}/servers/getVersion"
     headers = {
         "Authorization": api_key,
         "Accept": "application/json",
@@ -40,7 +49,7 @@ def test_misp_connection(api_key, base_url="https://misp.cert.dk", verify_ssl=Tr
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     try:
-        response = requests.get(url, headers=headers, verify=verify_ssl)
+        response = requests.get(url, headers=headers, verify=verify_ssl, timeout=timeout)
         response.raise_for_status()
         version = response.json().get("version", "unknown")
         return {"success": True, "version": version}
@@ -48,12 +57,13 @@ def test_misp_connection(api_key, base_url="https://misp.cert.dk", verify_ssl=Tr
         return {"success": False, "error": str(e), "details": getattr(e.response, "text", "")}
 
 
+
 # === MISP Lookup ===
-def search_ioc_in_misp(ioc_value, api_key, base_url=None, verify_ssl=True):
+def search_ioc_in_misp(ioc_value, api_key, base_url=None, verify_ssl=None):
     if not api_key:
         return {"error": "missing_api_key"}
 
-    misp_url = (base_url or "https://misp.cert.dk").rstrip("/")
+    base_url, verify_ssl = _resolve_misp_config(base_url, verify_ssl)
     headers = {
         "Authorization": api_key,
         "Accept": "application/json",
@@ -63,13 +73,15 @@ def search_ioc_in_misp(ioc_value, api_key, base_url=None, verify_ssl=True):
     if not verify_ssl:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    url = f"{misp_url}/attributes/restSearch"
+    url = f"{base_url}/attributes/restSearch"
     payload = {
         "value": ioc_value,
         "returnFormat": "json"
     }
 
     try:
+        # Optional debug:
+        # print(f"[MISP] search url={url} key={_mask(api_key)} value={ioc_value}")
         response = requests.post(url, headers=headers, json=payload, verify=verify_ssl, timeout=5)
         response.raise_for_status()
         attributes = response.json().get("response", {}).get("Attribute", [])
@@ -105,8 +117,8 @@ def custom_color_for_tag(tag):
 def block_ioc_in_misp(
     ioc_value,
     api_key,
-    base_url="https://misp.cert.dk",
-    verify_ssl=True,
+    base_url=None,
+    verify_ssl=None,
     ioc_type="domain",
     category="Network activity",
     comment="Blocked via Chrome Extension",
@@ -114,34 +126,29 @@ def block_ioc_in_misp(
     tlp="tlp:red",
     event_info="Chrome Extension Blocks - Unknown"
 ):
-
-    misp = PyMISP(base_url.rstrip("/"), api_key, verify_ssl, "json")
+    base_url, verify_ssl = _resolve_misp_config(base_url, verify_ssl)
+    misp = PyMISP(base_url, api_key, verify_ssl, "json")
 
     # Step 1: Try to find existing event using restSearch (match by event info)
     event = None
     try:
-        search_payload = {
-            "returnFormat": "json",
-            "eventinfo": event_info
-        }
+        search_payload = {"returnFormat": "json", "eventinfo": event_info}
         search_result = misp.direct_call("events/restSearch", search_payload)
-        print("[DEBUG] search_result:", json.dumps(search_result, indent=2))  # Optional debug
+        # Optional debug (avoid dumping big blobs in prod):
+        # print(f"[MISP] restSearch eventinfo='{event_info}' base={base_url} key={_mask(api_key)}")
 
-        # Handle both list and dict formats (some versions return list directly)
         if isinstance(search_result, list):
             for result in search_result:
                 evt = result.get("Event", {})
                 if evt.get("info") == event_info:
                     event = result
                     break
-
         elif isinstance(search_result, dict) and "response" in search_result:
             for result in search_result["response"]:
                 evt = result.get("Event", {})
                 if evt.get("info") == event_info:
                     event = result
                     break
-
     except Exception as e:
         logging.error("[MISP] Search failed: %s", str(e))
         return {"error": "Failed to search MISP", "details": str(e)}

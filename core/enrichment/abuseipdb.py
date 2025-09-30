@@ -1,14 +1,10 @@
 import requests
 import os
 
-def load_abuseipdb_key():
-    # Load API key from environment variable
-    return os.environ.get("ABUSEIPDB_API_KEY") or "950413a64d68ca802ff84f722b6d9044287b7a6362238c2ba38812f24f84a66ca3ef3785a836f12f"
-
-def query_abuseipdb(ip, verbose=False):
-    api_key = load_abuseipdb_key()
+def query_abuseipdb(ip, api_key=None, verbose=False):
+    api_key = (api_key or os.getenv("ABUSEIPDB_API_KEY") or "").strip()
     if not api_key:
-        raise ValueError("Missing ABUSEIPDB_API_KEY environment variable")
+        return {"error": "missing_abuseipdb_api_key"}
 
     url = "https://api.abuseipdb.com/api/v2/check"
     headers = {
@@ -22,11 +18,11 @@ def query_abuseipdb(ip, verbose=False):
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         response.raise_for_status()
-        data = response.json()["data"]
+        data = response.json().get("data", {})
 
-        result = {
+        return {
             "ip": data.get("ipAddress"),
             "abuse_score": data.get("abuseConfidenceScore"),
             "country": data.get("countryCode"),
@@ -35,12 +31,9 @@ def query_abuseipdb(ip, verbose=False):
             "last_reported": data.get("lastReportedAt"),
             "categories": data.get("usageType")
         }
-
-        return result
-
     except requests.exceptions.RequestException as e:
-        print(f"[ERROR] AbuseIPDB query failed: {e}")
-        return None
+        return {"error": str(e)}
+
 
 # Optional CLI testing support
 if __name__ == "__main__":

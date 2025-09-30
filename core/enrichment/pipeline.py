@@ -1,5 +1,4 @@
 import os
-import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from core.ioc_model import IoC
 from core.enrichment.dnsdb import enrich_dnsdb
@@ -12,25 +11,38 @@ from integrations.umbrella import UmbrellaAPI, TOKEN_URL
 from integrations.defender_enrich import query_advanced_hunting, query_alerts_from_hunting
 from OTXv2 import IndicatorTypes
 
-# Load config.yaml
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../config.yaml")
-with open(CONFIG_PATH, "r") as f:
-    config = yaml.safe_load(f)
+def _clean_str(v):
+    return v.strip() if isinstance(v, str) else v
 
-OTX_API_KEY = config.get("otx", {}).get("api_key")
+def _coalesce_nonempty(*vals):
+    for v in vals:
+        v = _clean_str(v)
+        if v:
+            return v
+    return None
 
+def _get_cred(api_keys, section, field, *env_names):
+    sec = api_keys.get(section) or {}
+    # Prefer non-empty per-request value, then envs (first non-empty wins)
+    return _coalesce_nonempty(sec.get(field), *(os.getenv(n) for n in env_names))
 
-def enrich_single_ioc(ioc, umbrella_api, vt_api_key, misp_api_key, dnsdb_api_key, otx_api_key, edl_api_key, verbose=False):
+def _get_baseurl(api_keys, section, env_name):
+    sec = api_keys.get(section) or {}
+    return _coalesce_nonempty(sec.get("baseUrl"), os.getenv(env_name))
+
+def enrich_single_ioc(ioc, umbrella_api, vt_api_key, misp_api_key, misp_base_url,
+                      dnsdb_api_key, dnsdb_base_url, abuseipdb_api_key,
+                      otx_api_key, edl_api_key, edl_base_url, verbose=False):
     results = {}
 
     def dnsdb():
-        r = enrich_dnsdb(ioc.value, ioc.type, api_key=dnsdb_api_key)
+        r = enrich_dnsdb(ioc.value, ioc.type, api_key=dnsdb_api_key, base_url=dnsdb_base_url)
         if r: results["dnsdb"] = r
         if verbose: print("    [✓] DNSDB enriched.")
 
     def abuseipdb():
         if ioc.type in ["ip", "ipv4", "ipv6"]:
-            r = query_abuseipdb(ioc.value)
+            r = query_abuseipdb(ioc.value, api_key=abuseipdb_api_key)
             if r: results["abuseipdb"] = r
             if verbose: print("    [✓] AbuseIPDB enriched.")
 
@@ -42,7 +54,7 @@ def enrich_single_ioc(ioc, umbrella_api, vt_api_key, misp_api_key, dnsdb_api_key
 
     def misp():
         try:
-            hits = search_ioc_in_misp(ioc.value, misp_api_key)
+            hits = search_ioc_in_misp(ioc.value, misp_api_key, base_url=misp_base_url)
             if hits:
                 results["misp"] = {"count": len(hits), "hits": hits}
                 if verbose: print(f"    [✓] MISP hits: {len(hits)}")
@@ -106,7 +118,7 @@ def enrich_single_ioc(ioc, umbrella_api, vt_api_key, misp_api_key, dnsdb_api_key
     def edl():
         if ioc.type in ["ip", "ipv4", "ipv6"] and edl_api_key:
             try:
-                is_blocked = check_edl(edl_api_key, ioc.value)
+                is_blocked = check_edl(edl_api_key, ioc.value, edl_base_url)
                 results["edl"] = {"blocked": is_blocked}
                 if verbose: print(f"    [✓] EDL check: {'Blocked' if is_blocked else 'Not blocked'}")
             except Exception as e:
@@ -147,22 +159,33 @@ def run_enrichment(ioc_values, verbose=False, api_keys=None):
         umbrella_api = UmbrellaAPI(TOKEN_URL, umbrella_key, umbrella_secret)
     enriched_iocs = []
 
-    # New: safely extract VT key from nested api_keys
+    # extract api_keys
+   # extract credentials with env fallbacks (per-user beats env if non-empty)
     api_keys = api_keys or {}
-    vt_api_key = (api_keys.get("virustotal") or {}).get("apiKey", None)
-    misp_api_key = (api_keys.get("misp") or {}).get("apiKey", None)
-    edl_api_key = (api_keys.get("edl") or {}).get("apiKey", None)
-    dnsdb_api_key = (api_keys.get("dnsdb") or {}).get("apiKey", None)
-    otx_api_key = (api_keys.get("otx") or {}).get("apiKey", None)
+
+    vt_api_key        = _get_cred(api_keys, "virustotal", "apiKey", "VT_API_KEY", "VIRUSTOTAL_API_KEY")
+    otx_api_key       = _get_cred(api_keys, "otx",        "apiKey", "OTX_API_KEY")
+    dnsdb_api_key     = _get_cred(api_keys, "dnsdb",      "apiKey", "DNSDB_API_KEY")
+    edl_api_key       = _get_cred(api_keys, "edl",        "apiKey", "EDL_API_KEY")
+    misp_api_key      = _get_cred(api_keys, "misp",       "apiKey", "MISP_API_KEY")
+    abuseipdb_api_key = _get_cred(api_keys, "abuseipdb",  "apiKey", "ABUSEIPDB_API_KEY")
+
+    misp_base_url  = _get_baseurl(api_keys, "misp",   "MISP_BASE_URL")
+    edl_base_url   = _get_baseurl(api_keys, "edl",    "EDL_BASE_URL")
+    dnsdb_base_url = _get_baseurl(api_keys, "dnsdb",  "DNSDB_BASE_URL")
 
 
     for raw_ioc in ioc_values:
         ioc = IoC(raw_ioc)
         if verbose:
             print(f"\n[~] Processing: {ioc.value} ({ioc.type})")
+            
         enriched = enrich_single_ioc(
-            ioc, umbrella_api, vt_api_key, misp_api_key, dnsdb_api_key, otx_api_key, edl_api_key, verbose
+            ioc, umbrella_api, vt_api_key, misp_api_key, misp_base_url,
+            dnsdb_api_key, dnsdb_base_url, abuseipdb_api_key,
+            otx_api_key, edl_api_key, edl_base_url, verbose
         )
+
         enriched_iocs.append(enriched)
 
     return [ioc.to_dict() for ioc in enriched_iocs]

@@ -80,8 +80,6 @@ def search_ioc_in_misp(ioc_value, api_key, base_url=None, verify_ssl=None):
     }
 
     try:
-        # Optional debug:
-        # print(f"[MISP] search url={url} key={_mask(api_key)} value={ioc_value}")
         response = requests.post(url, headers=headers, json=payload, verify=verify_ssl, timeout=5)
         response.raise_for_status()
         attributes = response.json().get("response", {}).get("Attribute", [])

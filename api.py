@@ -96,7 +96,7 @@ def misp_block():
     user_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
     user_org = data.get("organization", "Unknown Org")
 
-    # New: Extract API key from frontend
+    #Extract API key from frontend
     api_key = data.get("api_key")
     base_url = data.get("base_url")
     verify_ssl = data.get("verify_ssl", True)
@@ -143,7 +143,6 @@ def enrich():
         result = run_enrichment(iocs, api_keys=api_keys, verbose=verbose)
         return jsonify(result)
     except Exception as e:
-        # Don’t log secrets; keep error generic
         if verbose:
             print(f"/enrich failed: {e}")
         return jsonify({"error": "enrichment_failed"}), 500
